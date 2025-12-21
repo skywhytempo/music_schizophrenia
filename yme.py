@@ -114,7 +114,7 @@ def send_welcome():
 #Вся та же группировка
 def normalize_genre(raw_genre: str) -> str:
     g = raw_genre.strip().lower()
-    return GENRE_MAP.get(g, raw_genre)
+    return GENRE_MAP.get(g, "other")
 
 
 def print_results(data):
