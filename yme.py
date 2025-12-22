@@ -2,6 +2,7 @@ import requests
 import json
 import time
 from datetime import datetime
+import os
 
 #Группировка по усредненным жанрам
 GENRE_MAP = {
@@ -12,7 +13,6 @@ GENRE_MAP = {
     "postpunk": "rock",
     "folkrock": "rock",
     "classicmetal": "rock",
-    "epicmetal"
     "metal": "rock",
     "numetal": "rock",
     "allrock": "rock",
@@ -118,7 +118,7 @@ def normalize_genre(raw_genre: str) -> str:
 
 
 def print_results(data):
-    tracks_data, artists_map, genres_map = data
+    tracks_data, artists_map, genres_map, title = data
 
     print(f"Число уникальных артистов: {len(artists_map)}")
     print(f"Число уникальных жанров: {len(genres_map)}")
@@ -179,7 +179,6 @@ def handle_message(uri_raw):
         artists_for_me = {}
 
         for track in tracks:
-
             artists_names = ", ".join(artist['name'] for artist in track['artists'])
 
             album = track['albums'][0]
@@ -240,14 +239,17 @@ def handle_message(uri_raw):
 
         all_file += stats
 
-        filename = f"{playlist_title}.txt"
+        if not os.path.isdir("analyse_data"):
+            os.mkdir("analyse_data")
+
+        filename = f"analyse_data/{playlist_title}.txt"
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(all_file)
 
         print(f"Плейлист сохранен в файл: {filename}")
-        print("Поддержите работу сервиса: https://u-pov.ru/donate. Спасибо за использование! 💜")
+        #print("Поддержите работу сервиса: https://u-pov.ru/donate. Спасибо за использование! 💜")
 
-        return all_tracks, sort_artists, sort_genres
+        return all_tracks, sort_artists, sort_genres, playlist_title
 
     except (json.JSONDecodeError, requests.exceptions.RequestException) as e:
         print_error(e)
