@@ -189,7 +189,7 @@ def handle_message(uri_raw):
 
             normalized_genre = normalize_genre(genre)
 
-            tuple_track = (artists_names, track['title'], normalized_genre)
+            tuple_track = (artists_names, track['title'], normalized_genre, genre)
             all_tracks.append(tuple_track)
 
             genres[normalized_genre] = genres.get(normalized_genre, 0) + 1

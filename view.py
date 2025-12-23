@@ -74,17 +74,17 @@ def plot_hist(sim_list, genre):
 
 def print_taste_dna(top_artists, top_genres, track_count, n):
     print("=" * 80)
-    print("🧬 РАСШИФРОВКА ТВОЕГО ВКУСОВОГО ДНК ВНУТРИ КЛАСТЕРА")
+    print("🧬 РАСШИФРОВКА ТВОЕГО ВКУСОВОГО ДНК (ГЛОБАЛЬНО)")
 
-    print(f"\n🎧 КОЛИЧЕСТВО ТРЕКОВ В КЛАСТЕРЕ: {track_count} треков")
+    print(f"\n🎧 КОЛИЧЕСТВО ТРЕКОВ В ПЛЕЙЛИСТЕ: {track_count} треков")
 
     print("\n🎸 Доминирующие жанры:")
     for genre, weight in top_genres[:n]:
-        print(f"  • {genre}: {weight * 100:.1f}% кластера")
+        print(f"  • {genre}: {weight * 100:.1f}% плейлиста")
 
     print("\n🎤 Ключевые исполнители:")
     for artist, weight in top_artists[:n]:
-        print(f"  • {artist}: {weight * 100:.1f}% кластера")
+        print(f"  • {artist}: {weight * 100:.1f}% плейлиста")
 
     # Шуточный вывод
     main_genre = top_genres[0][0]
@@ -94,7 +94,9 @@ def print_taste_dna(top_artists, top_genres, track_count, n):
 def show_menu():
     print("Выберите режим анализа:")
     print("[1] 📊 Общий анализ (Total Stats)")
-    print("[2] 🚀 Анализ эволюции (Evolution Timeline)")
+    print("[2] 🎧 Жанровый анализ (Genres Stats)")
+    print("[3] 🚀 Анализ эволюции (Evolution Timeline)")
+    print("[4] 👀 Сравнить ваш плейлист с другим плейлистом")
     print("[0] ❌ Выход")
     return input(">> ")
 
@@ -149,3 +151,55 @@ def print_era_mood_stats(era_index, aggr_count, melanch_count):
     print("=" * 80)
 
     return data_string
+
+def print_taste_genre_dna(genre, top_artists, top_genres, track_count, n):
+    print("=" * 80)
+    print(f"🧬 РАСШИФРОВКА ТВОЕГО ВКУСОВОГО ДНК ВНУТРИ КЛАСТЕРА ЖАНРА {genre}")
+
+    print(f"\n🎧 КОЛИЧЕСТВО ТРЕКОВ В КЛАСТЕРЕ: {track_count} треков")
+
+    print("\n🎸 Доминирующие жанры:")
+    for genre, weight in top_genres[:n]:
+        print(f"  • {genre}: {weight * 100:.1f}% кластера")
+
+    print("\n🎤 Ключевые исполнители:")
+    for artist, weight in top_artists[:n]:
+        print(f"  • {artist}: {weight * 100:.1f}% кластера")
+
+    # Шуточный вывод
+    main_genre = top_genres[0][0]
+    main_artist = top_artists[0][0]
+    print(f"\n💡 Твой «сферический трек в вакууме»: {main_genre} в исполнении {main_artist}.")
+
+def print_playlist_comparison(result, name1, name2):
+    print("=" * 80)
+    print(f"👀 СРАВНЕНИЕ ПЛЕЙЛИСТОВ: {name1} vs {name2}")
+    print(f"\n📱 Сходство «вкусовых центроидов» (cosine): {result['taste_cosine']*100:.1f}%")
+
+    print("\n🎤 Артисты:")
+    print(f" 📊 Jaccard-пересечение: {result['jaccard_artists']*100:.1f}%")
+    if result["common_artists"]:
+        print(" 🎙️ Общие исполнители:")
+        for a in list(result["common_artists"])[:5]:
+            print(f"    • {a}")
+    else:
+        print("  Общих исполнителей нет.")
+
+    print("\n🎸 Жанры:")
+    print(f" 📊 Jaccard-пересечение: {result['jaccard_genres']*100:.1f}%")
+    if result["common_genres"]:
+        print(" 🎧 Общие жанры:")
+        for g in list(result["common_genres"])[:5]:
+            print(f"    • {g}")
+    else:
+        print("  Общих жанров нет.")
+
+
+
+
+
+
+
+
+
+

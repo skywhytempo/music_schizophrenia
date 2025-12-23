@@ -107,12 +107,24 @@ def genres_idxs(tracklist):
     return indices_by_genre
 
 def analyze_by_genre(genre, idxs, ohe_data):
+
     genre_vecs = [ohe_data[i] for i in idxs]
     genre_centroid = centroid(genre_vecs)
 
     sims = [cosine(ohe_data[i], genre_centroid) for i in idxs]
 
     return sims, genre_centroid
+
+
+def subgenre_freq_for_cluster(tracklist, idxs):
+    counter = Counter()
+    for i in idxs:
+        track = tracklist[i]
+        raw_genre = track[3]  # сырой жанр
+        counter[raw_genre] += 1
+    return counter
+
+
 
 def get_top_tracks(tracklist, sim_list, idxs):
     sim_tracks = [(tracklist[i], sim_list[k]) for k, i in enumerate(idxs)]
