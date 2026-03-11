@@ -3,6 +3,8 @@ import json
 import time
 from datetime import datetime
 import os
+import pandas as pd
+from pandas.core.interchange.dataframe_protocol import DataFrame
 
 #Группировка по усредненным жанрам
 GENRE_MAP = {
@@ -21,6 +23,7 @@ GENRE_MAP = {
     "hardrock": "rock",
     "industrial": "rock",
     "epicmetal": "rock",
+    "j-rock": "rock",
 
 
     # pop
@@ -94,7 +97,6 @@ GENRE_MAP = {
     "vocal": "chill_vocal",
 }
 
-
 def print_error(e):
     print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "|", ">>>", e)
 
@@ -117,35 +119,18 @@ def normalize_genre(raw_genre: str) -> str:
     return GENRE_MAP.get(g, "other")
 
 
-def print_results(data):
-    tracks_data, artists_map, genres_map, title = data
+def save_to_file(file_string, title, holder):
+    # Запись данных в файл
+    if not os.path.isdir("analyse_data"):
+        os.mkdir("analyse_data")
 
-    print(f"Число уникальных артистов: {len(artists_map)}")
-    print(f"Число уникальных жанров: {len(genres_map)}")
+    if title == "Мне нравится":
+        title += f"_{holder}"
 
-    #Список треков
-    '''print("Список треков:")
+    filename = f"analyse_data/{title}.txt"
 
-    for track in tracks_data:
-        print(f"{track[0]} - {track[1]}, Жанр: {track[2]}")'''
-
-    print("=" * 60)
-
-    print("ТОП 5 ЖАНРОВ (ПО КОЛИЧЕСТВУ ТРЕКОВ)")
-
-    top_genres = list(genres_map.keys())[:5]
-
-    for genre in top_genres:
-        print(f"{genre}: {genres_map[genre]}")
-
-    print("=" * 60)
-
-    print("ТОП 5 АРТИСТОВ (ПО КОЛИЧЕСТВУ ТРЕКОВ)")
-
-    top_artists = list(artists_map.keys())[:5]
-
-    for artist in top_artists:
-        print(f"{artist}: {artists_map[artist]}")
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(file_string)
 
 
 def handle_message(uri_raw):
@@ -165,43 +150,51 @@ def handle_message(uri_raw):
 
         #Получаем ответ и парсим JSON
         data = response.json()
-        playlist_title = data['playlist']['title']
+        playlist_title = f"{data['playlist']['title']}_{owner}"
         tracks = data['playlist']['tracks']
+
 
         print(f"Название плейлиста: {playlist_title}")
         print(f"Число треков: {len(tracks)}")
 
+
+        #Собираем данные для DataFrame
         all_tracks = []
-
-        all_file = ""
-
-        genres = {}
-        artists_for_me = {}
 
         for track in tracks:
             artists_names = ", ".join(artist['name'] for artist in track['artists'])
+            title = track['title']
 
             album = track['albums'][0]
-            if 'genre' in album:
-                genre = album['genre']
-            else:
+            try:
+                genre = album.get('genre', "Не указан")
+            except IndexError:  # Бывает трек без альбома
                 genre = "Не указан"
 
             normalized_genre = normalize_genre(genre)
-
-            tuple_track = (artists_names, track['title'], normalized_genre, genre)
+            tuple_track = (artists_names, title, normalized_genre, genre)
             all_tracks.append(tuple_track)
 
-            genres[normalized_genre] = genres.get(normalized_genre, 0) + 1
+            '''genres[normalized_genre] = genres.get(normalized_genre, 0) + 1
             full_track = f"{artists_names} - {track['title']}, Жанр: {normalized_genre}\n"
             all_file += full_track
             split_artist = artists_names.split(",")
             for artist in split_artist:
                 artist = artist.strip()
-                artists_for_me[artist] = artists_for_me.get(artist, 0) + 1
+                artists_for_me[artist] = artists_for_me.get(artist, 0) + 1'''
+
+        df = pd.DataFrame(all_tracks, columns=["artists", "title", "genre", "subgenre"])
 
 
-        sort_genres = {}
+        top_genres_series = df['genre'].value_counts().head(5)
+
+        top_artists_series = df['artists'].str.split(', ').explode().value_counts().head(5)
+
+        lines = df['artists'] + " - " + df['title'] + ", Жанр: " + df['genre']
+
+        file_content = "\n".join(lines)
+
+        '''sort_genres = {}
         sort_artists = {}
 
         for key in sorted(genres, key=genres.get):
@@ -218,38 +211,32 @@ def handle_message(uri_raw):
         top_genres = [genre[0] for genre in top_genres]
 
         top_artists = list(sort_artists.items())[:5]
-        top_artists = [artist[0] for artist in top_artists]
+        top_artists = [artist[0] for artist in top_artists]'''
 
         stats = "\n" + "=" * 60 + "\n" + "ТОП ЖАНРОВ (ПО КОЛИЧЕСТВУ ТРЕКОВ)\n"
 
 
-        for genre in top_genres:
-            stats += f"{genre}: {sort_genres[genre]}\n"
 
-
+        for genre, count in top_genres_series.items():
+            stats += f"{genre}: {count}\n"
 
         stats += "=" * 60 + "\n" + "ТОП АРТИСТОВ (ПО КОЛИЧЕСТВУ ТРЕКОВ) \n"
 
-        for artist in top_artists:
-            stats += f"{artist}: {sort_artists[artist]}\n"
+        for artist, count in top_artists_series.items():
+            stats += f"{artist}: {count}\n"
 
         stats += "=" * 60 +"\n"
 
-        print("=" * 60)
+        file_content += stats
 
-        all_file += stats
+        #Запись данных в файл
 
-        if not os.path.isdir("analyse_data"):
-            os.mkdir("analyse_data")
+        save_to_file(file_content, playlist_title, owner)
 
-        filename = f"analyse_data/{playlist_title}.txt"
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(all_file)
+        df.to_csv(f"{playlist_title}.csv")
 
-        print(f"Плейлист сохранен в файл: {filename}")
-        #print("Поддержите работу сервиса: https://u-pov.ru/donate. Спасибо за использование! 💜")
 
-        return all_tracks, sort_artists, sort_genres, playlist_title
+        return df, playlist_title
 
     except (json.JSONDecodeError, requests.exceptions.RequestException) as e:
         print_error(e)
@@ -276,7 +263,6 @@ if __name__ == "__main__":
         try:
             uri_raw = input("\nВведите ссылку на плейлист: ")
             playlist_data = handle_message(uri_raw)
-            print_results(playlist_data)
         except KeyboardInterrupt:
             print("\nВыход из программы.")
             break

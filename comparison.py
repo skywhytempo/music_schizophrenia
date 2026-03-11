@@ -1,112 +1,58 @@
-from typing import List, Dict, Any, Tuple
+import pandas as pd
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from analysis import build_ohe
 
-from OOP_structure.PlayListData import PlayList
-from analysis import global_centroid
 
-
-def cosine(a, b) -> float:
-    a = np.array(a, dtype=float)
-    b = np.array(b, dtype=float)
-    num = np.dot(a, b)
-    den = np.linalg.norm(a) * np.linalg.norm(b)
-    return 0.0 if den == 0 else num / den
-
-def build_joint_data(
-    tracklist1: List[tuple],
-    artists_map1: Dict[str, int],
-    genres_map1: Dict[str, int],
-    tracklist2: List[tuple],
-    artists_map2: Dict[str, int],
-    genres_map2: Dict[str, int],
-):
-    all_artists = set(artists_map1.keys()) | set(artists_map2.keys())
-    all_genres = set(genres_map1.keys()) | set(genres_map2.keys())
-
-    artist_to_idx = {artist: i for i, artist in enumerate(all_artists)}
-    genre_to_idx = {genre: i for i, genre in enumerate(all_genres)}
-
-    def build_ohe_with_vocab(tracklist):
-        artists_count = len(artist_to_idx)
-        genres_count = len(genre_to_idx)
-        ohe_data = []
-
-        for track in tracklist:
-            artists_str = track[0]
-            grouped_genre = track[2]  # укрупнённый жанр
-
-            split_artists = [s.strip() for s in artists_str.split(",")]
-
-            ohe_artist = [0] * artists_count
-            ohe_genre = [0] * genres_count
-
-            for artist in split_artists:
-                idx = artist_to_idx.get(artist)
-                if idx is not None:
-                    ohe_artist[idx] = 1
-
-            gidx = genre_to_idx.get(grouped_genre)
-            if gidx is not None:
-                ohe_genre[gidx] = 1
-
-            ohe_track = ohe_artist + ohe_genre
-            ohe_data.append(ohe_track)
-
-        return ohe_data
-
-    ohe1 = build_ohe_with_vocab(tracklist1)
-    ohe2 = build_ohe_with_vocab(tracklist2)
-
-    return all_artists, all_genres, ohe1, ohe2
-
-def compare_playlists(pl1: PlayList, pl2: PlayList) -> Dict[str, Any]:
+def compare_playlists(pl1, pl2):
     """
-    Возвращает словарь с:
-      - taste_cosine: косинусное сходство глобальных центроидов
-      - common_artists, jaccard_artists
-      - common_genres, jaccard_genres
+    Сравнивает два плейлиста (PlayList objects) в едином векторном пространстве.
     """
-    all_artists, all_genres, ohe1, ohe2 = build_joint_data(
-        pl1.tracklist, pl1.artists_map, pl1.genres_map,
-        pl2.tracklist, pl2.artists_map, pl2.genres_map,
-    )
+    # 1. Объединяем данные, чтобы создать общее пространство признаков
+    # (иначе у одного будет колонка 'Artist A', а у другого нет, и векторы не совпадут)
+    df1 = pl1.df.copy()
+    df2 = pl2.df.copy()
 
-    # посчитаем центроиды в общем пространстве
-    track_count1 = len(pl1.tracklist)
-    track_count2 = len(pl2.tracklist)
+    # Метки не обязательны для OHE, но удобны для разделения
+    # Просто конкатенируем
+    df_joint = pd.concat([df1, df2], ignore_index=True)
 
-    # расширяем карты до общего словаря (отсутствующие → 0)
-    artists_map1 = {a: pl1.artists_map.get(a, 0) for a in all_artists}
-    genres_map1 = {g: pl1.genres_map.get(g, 0) for g in all_genres}
+    # 2. Строим OHE для объединенного плейлиста
+    # Теперь у нас есть колонки для всех артистов из обоих плейлистов
+    features_joint = build_ohe(df_joint)
 
-    artists_map2 = {a: pl2.artists_map.get(a, 0) for a in all_artists}
-    genres_map2 = {g: pl2.genres_map.get(g, 0) for g in all_genres}
+    # 3. Разделяем обратно
+    n1 = len(df1)
+    X1 = features_joint.iloc[:n1].values
+    X2 = features_joint.iloc[n1:].values
 
-    centroid1 = global_centroid(artists_map1, genres_map1, all_artists, all_genres, track_count1)
-    centroid2 = global_centroid(artists_map2, genres_map2, all_artists, all_genres, track_count2)
+    # 4. Считаем глобальные центроиды (вкусовые профили)
+    centroid1 = np.mean(X1, axis=0).reshape(1, -1)
+    centroid2 = np.mean(X2, axis=0).reshape(1, -1)
 
-    taste_sim = cosine(centroid1, centroid2)
+    # 5. Косинусное сходство вкусов
+    # cosine_similarity возвращает матрицу [[sim]], берем [0][0]
+    taste_cosine = cosine_similarity(centroid1, centroid2)[0][0]
 
-    # пересечение артистов/жанров (по исходным картам)
+    # 6. Jaccard (множества) - старая добрая логика, она работает отлично
     artists1 = set(pl1.artists_map.keys())
     artists2 = set(pl2.artists_map.keys())
+
     common_artists = artists1 & artists2
     union_artists = artists1 | artists2
     jaccard_artists = len(common_artists) / len(union_artists) if union_artists else 0.0
 
     genres1 = set(pl1.genres_map.keys())
     genres2 = set(pl2.genres_map.keys())
+
     common_genres = genres1 & genres2
     union_genres = genres1 | genres2
     jaccard_genres = len(common_genres) / len(union_genres) if union_genres else 0.0
 
     return {
-        "taste_cosine": taste_sim,
-        "centroid1": centroid1,
-        "centroid2": centroid2,
+        "taste_cosine": taste_cosine,
         "common_artists": common_artists,
         "jaccard_artists": jaccard_artists,
         "common_genres": common_genres,
-        "jaccard_genres": jaccard_genres,
+        "jaccard_genres": jaccard_genres
     }
-

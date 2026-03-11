@@ -1,7 +1,9 @@
-import yme
 import numpy as np
 from collections import defaultdict
 from collections import Counter
+
+import pandas as pd
+from sklearn.preprocessing import MultiLabelBinarizer
 
 AGGRESSIVE_WORDS = [
     'phonk', 'kill', 'demon', 'blood', 'hell', 'fight', 'war',
@@ -13,8 +15,8 @@ MELANCHOLIC_WORDS = [
     'tears', 'heart', 'broken', 'melancholy', 'lost'
 ]
 
-def build_ohe(tracklist, artists_map, genres_map):
-    artists_count = len(artists_map)
+def build_ohe(df):
+    '''artists_count = len(artists_map)
     all_artists = list(artists_map.keys())
 
     genres_count = len(genres_map)
@@ -41,9 +43,19 @@ def build_ohe(tracklist, artists_map, genres_map):
         ohe_genre[genre_idx] = 1
 
         ohe_track = ohe_artist + ohe_genre
-        ohe_data.append(ohe_track)
+        ohe_data.append(ohe_track)'''
 
-    return ohe_data, all_artists, all_genres
+    genre_dummies = pd.get_dummies(df["genre"]).add_prefix('genre_')
+    all_genres = genre_dummies.columns.tolist()
+
+    artists_series = df['artists'].str.split(', ')
+    mlb = MultiLabelBinarizer()
+    artists_matrix = mlb.fit_transform(artists_series)
+    all_artists = mlb.classes_.tolist()
+    artists_df = pd.DataFrame(artists_matrix, columns=all_artists)
+
+    ohe_data = pd.concat([artists_df, genre_dummies], axis=1)
+    return ohe_data
 
 def get_similarity_to_median(vector, median_vector):
     scalar = np.dot(vector, median_vector)
@@ -115,7 +127,6 @@ def analyze_by_genre(genre, idxs, ohe_data):
 
     return sims, genre_centroid
 
-
 def subgenre_freq_for_cluster(tracklist, idxs):
     counter = Counter()
     for i in idxs:
@@ -123,8 +134,6 @@ def subgenre_freq_for_cluster(tracklist, idxs):
         raw_genre = track[3]  # сырой жанр
         counter[raw_genre] += 1
     return counter
-
-
 
 def get_top_tracks(tracklist, sim_list, idxs):
     sim_tracks = [(tracklist[i], sim_list[k]) for k, i in enumerate(idxs)]
@@ -148,7 +157,9 @@ def get_top_artists(sim_tracks):
 
     return sims_sort_artists
 
-def interpret_centroid(median_vector, all_artists, all_genres):
+def interpret_centroid(median_vector, feature_names):
+    all_genres = [c for c in feature_names if c.startswith('genre_')]
+    all_artists = [c for c in feature_names if not c.startswith('genre_')]
     # Разделяем вектор
     n_artists = len(all_artists)
     artist_weights = median_vector[:n_artists]
@@ -208,7 +219,7 @@ def mood_counters_for_tracks(era_tracks):
     melanch = 0
 
     for track in era_tracks:
-        title = track[1].lower()
+        title = track['title'].lower()
         for w in AGGRESSIVE_WORDS:
             if w in title:
                 aggr += 1

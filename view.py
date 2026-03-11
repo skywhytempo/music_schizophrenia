@@ -15,7 +15,7 @@ def print_global_top_n(similarity_list, n):
 
     for track, similarity in similarity_list[:n]:
         track_string = string_track(track)
-        print(f"Трек: {track_string}, схожесть с выборочным средним: {similarity * 100}%")
+        print(f"Трек: {track_string}, схожесть с выборочным средним: {(similarity * 100):.1f}%")
 
 def print_global_bottom_n(similarity_list, n):
     print("=" * 80)
@@ -96,34 +96,34 @@ def show_menu():
     print("[1] 📊 Общий анализ (Total Stats)")
     print("[2] 🎧 Жанровый анализ (Genres Stats)")
     print("[3] 🚀 Анализ эволюции (Evolution Timeline)")
-    print("[4] 👀 Сравнить ваш плейлист с другим плейлистом")
+    print("[4] 🧠 Автоматический кластеризированный анализ")
+    print("[5] 👀 Сравнить ваш плейлист с другим плейлистом")
     print("[0] ❌ Выход")
     return input(">> ")
 
-def print_era_genre_stats(era_index, genre_counter, top_n=5):
+def print_era_genre_stats(era_index, genre_counter, track_count, top_n=5):
     print("=" * 80)
-    labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
-    title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
-    #title = f"ЭПОХА {era_index}"
-    print(f"🎸 ЭРА {title}: жанровой профиль")
+    #labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
+    #title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
+    title = f"ЭПОХА {era_index}"
+    print(f"🎸 {title}: жанровой профиль")
     data_string = "=" * 80
     data_string += f"\n🎸 ЭРА {title}: жанровой профиль"
-    total = sum(genre_counter.values())
+
     for genre, cnt in genre_counter.most_common(top_n):
-        perc = cnt / total * 100 if total > 0 else 0
+        perc = cnt / track_count * 100 if track_count > 0 else 0
         print(f"  • {genre}: {cnt} трек(ов), {perc:.1f}%")
         data_string += f"\n  • {genre}: {cnt} трек(ов), {perc:.1f}%"
     return  data_string
 
-def print_era_artist_stats(era_index, artist_counter, top_n=5):
-    labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
-    title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
-    #title = f"ЭПОХА {era_index}"
-    print(f"\n🎤 ЭРА {title}: основные артисты")
+def print_era_artist_stats(era_index, artist_counter, track_count, top_n=5):
+    #labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
+    #title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
+    title = f"ЭПОХА {era_index}"
+    print(f"\n🎤 {title}: основные артисты")
     data_string = f"\n\n🎤 ЭРА {title}: основные артисты"
-    total = sum(artist_counter.values())
     for artist, cnt in artist_counter.most_common(top_n):
-        perc = cnt / total * 100 if total > 0 else 0
+        perc = cnt / track_count * 100 if track_count > 0 else 0
         print(f"  • {artist}: {cnt} трек(ов), {perc:.1f}% эры")
         data_string += f"\n  • {artist}: {cnt} трек(ов), {perc:.1f}% эры"
     return data_string
@@ -158,9 +158,9 @@ def print_taste_genre_dna(genre, top_artists, top_genres, track_count, n):
 
     print(f"\n🎧 КОЛИЧЕСТВО ТРЕКОВ В КЛАСТЕРЕ: {track_count} треков")
 
-    print("\n🎸 Доминирующие жанры:")
-    for genre, weight in top_genres[:n]:
-        print(f"  • {genre}: {weight * 100:.1f}% кластера")
+    print("\n🎸 Доминирующие поджанры:")
+    for genre, weight, count in top_genres[:n]:
+        print(f"  • {genre}: {count} треков, {weight * 100:.1f}% кластера")
 
     print("\n🎤 Ключевые исполнители:")
     for artist, weight in top_artists[:n]:
@@ -194,8 +194,20 @@ def print_playlist_comparison(result, name1, name2):
     else:
         print("  Общих жанров нет.")
 
+def print_kmeans_clusters(cluster_reports):
+    print("=" * 80)
+    print("🧠 АВТОМАТИЧЕСКАЯ КЛАСТЕРИЗАЦИЯ ВКУСА (K-MEANS)")
 
+    for report in cluster_reports:
+        print(f"\n🏷️  КЛАСТЕР #{report['cluster_id']} (Треков: {report['count']})")
 
+        # Собираем описание
+        genres_str = ", ".join([f"{g[0]} ({g[1] * 100:.0f}%)" for g in report['top_genres']])
+        artists_str = ", ".join([f"{a[0]}" for a in report['top_artists']])
+
+        print(f"   Жанровый профиль: {genres_str}")
+        print(f"   Ядро артистов:    {artists_str}")
+       # print(f"   Примеры:          {', '.join([f"{t} by {report}" for t in report['examples']['title']])}")
 
 
 

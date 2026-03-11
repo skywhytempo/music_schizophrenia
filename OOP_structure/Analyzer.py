@@ -1,145 +1,177 @@
-import analysis
-from typing import List, Tuple, Dict, Any
+import pandas as pd
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from typing import Dict
+
+# Импортируем только то, что реально нужно
+# Если у тебя логика интерпретации осталась в analysis, импортируй её
+from analysis import build_ohe, interpret_centroid, compute_stats, mood_counters_for_tracks
+
 
 class Analyzer:
     def __init__(self, playlist):
         self.playlist = playlist
-        self.ohe_data: List[List[float]] | None = None
-        self.all_artists: List[str] | None = None
-        self.all_genres: List[str] | None = None
-        self.global_centroid_vec: List[float] | None = None
+        self.df = playlist.df
 
-    def artist_set(self):
-        return set(self.all_artists)
+        # Матрица признаков
+        self.X_matrix = None
+        self.feature_names = None
 
-    def genre_set(self):
-        return set(self.all_genres)
+        # Центроиды
+        self.global_centroid_vec = None
 
-    #---------ПОДГОТОКА ДАННЫХ, ВЫЧИСЛЕНИЕ МАТ.ПАРАМЕТРОВ-----------------
+        # Метаданные колонок
+        self.artist_cols = []
+        self.genre_cols = []
 
-    #Огромный OHE-вектор плейлиста
     def build_ohe(self) -> None:
-        ohe_data, all_artists, all_genres = analysis.build_ohe(
-            self.playlist.tracklist,
-            self.playlist.artists_map,
-            self.playlist.genres_map
-        )
+        """Строит матрицу OHE через Pandas"""
+        # В analysis.py должна быть функция build_ohe_pandas(df) -> (df_features, artists, genres)
+        # или просто df_features
+        # Предположим, она возвращает DataFrame признаков:
+        features_df = build_ohe(self.df)
 
-        self.ohe_data = ohe_data
-        self.all_artists = all_artists
-        self.all_genres = all_genres
+        self.X_matrix = features_df.values
+        self.feature_names = features_df.columns.tolist()
 
-    #Выборочный средний OHE-вектор плейлиста
+        # Разделяем колонки для красивого вывода
+        # (предполагаем, что жанры начинаются с 'genre_', как договаривались)
+        self.genre_cols = [c for c in self.feature_names if c.startswith('genre_')]
+        self.artist_cols = [c for c in self.feature_names if not c.startswith('genre_')]
+
     def compute_global_centroid(self) -> None:
-        if self.all_artists is None or self.all_genres is None:
+        if self.X_matrix is None:
             raise ValueError("OHE must be built before computing centroid")
+        self.global_centroid_vec = np.mean(self.X_matrix, axis=0)
 
-        self.global_centroid_vec = analysis.global_centroid(
-            self.playlist.artists_map,
-            self.playlist.genres_map,
-            self.all_artists,
-            self.all_genres,
-            self.playlist.track_count
-        )
-    #---------ГЛОБААЛЬНЫЙ АНАЛИЗ-------------
-
+    # --------- ГЛОБАЛЬНЫЙ АНАЛИЗ -------------
     def compute_sims_stats(self) -> Dict:
-        if self.ohe_data is None or self.global_centroid_vec is None:
-            raise ValueError("OHE and centroid must be computed first")
+        if self.global_centroid_vec is None:
+            raise ValueError("Centroid needed")
 
-        sims = analysis.compute_similarity(self.ohe_data, self.global_centroid_vec)
-        sorted_sims = analysis.sorted_similarity_with_tracks(self.playlist.tracklist, sims)
-        mean, var, idx = analysis.compute_stats(sims)
+        centroid_2d = self.global_centroid_vec.reshape(1, -1)
+        # Считаем косинусную близость (vectorized!)
+        sims = cosine_similarity(self.X_matrix, centroid_2d).flatten()
+
+        mean, var, idx = compute_stats(sims)
+
+        # Сразу создаем "обогащенный" DataFrame
+        # (копия, чтобы не портить оригинал)
+        res_df = self.df.copy()
+        res_df["similarity"] = sims
 
         return {
-            "sorted_sims": sorted_sims,
-            "sims": sims,
+            "sorted_sims": res_df.sort_values('similarity', ascending=False),
             "mean": mean,
             "var": var,
             "index_I": idx
         }
 
     def global_taste_dna(self) -> dict:
+        return interpret_centroid(self.global_centroid_vec, self.feature_names)
+
+    # ---------- ЖАНРОВЫЙ АНАЛИЗ (Vectorized) ------------
+    def analyze_by_genre(self, genre_name):
         """
-        Топ-артисты и жанры для глобальной центроиды.
+        Анализ конкретного жанра без idxs, чисто через Pandas.
         """
-        if self.global_centroid_vec is None or self.all_artists is None or self.all_genres is None:
-            raise ValueError("Centroid and OHE metadata must be ready")
+        # Фильтруем данные
+        mask = self.df['genre'] == genre_name
+        local_X = self.X_matrix[mask]
 
-        top_artists, top_genres = analysis.interpret_centroid(
-            self.global_centroid_vec,
-            self.all_artists,
-            self.all_genres,
-        )
-        return {
-            "top_artists": top_artists,
-            "top_genres": top_genres,
-        }
+        if len(local_X) == 0:
+            return None
 
-    #----------ЖАНРОВЫЙ АНАЛИЗ------------
+        # Считаем локальный центроид
+        local_centroid = np.mean(local_X, axis=0)
 
-    def genre_indices(self):
-        return analysis.genres_idxs(self.playlist.tracklist)
+        # Считаем похожесть внутри жанра
+        local_sims = cosine_similarity(local_X, local_centroid.reshape(1, -1)).flatten()
+        mean, var, idx_i = compute_stats(local_sims)
 
-    def analyze_by_genre(self, genre, idxs):
-        if self.ohe_data is None:
-            raise ValueError("OHE must be built before genre analysis")
-        sims, genre_centroid = analysis.analyze_by_genre(genre, idxs, self.ohe_data)
-        mean, var, idx = analysis.compute_stats(sims)
-        sim_tracks = analysis.get_top_tracks(self.playlist.tracklist, sims, idxs)
-        top_artists, top_genres = analysis.interpret_centroid(genre_centroid, self.all_artists, self.all_genres)
-        subgenre_counter = analysis.subgenre_freq_for_cluster(self.playlist.tracklist, idxs)
+        # Топ треков этого жанра по "типичности"
+        genre_df = self.df[mask].copy()
+        genre_df['similarity'] = local_sims
+        top_tracks = genre_df.sort_values('similarity', ascending=False).head(5)
 
+        # ДНК жанра (какие артисты там главные)
+        top_artists, top_genres = interpret_centroid(local_centroid, self.feature_names)
+
+        # Поджанры внутри жанра (value_counts делает всё сам)
+        subgenre_counter = genre_df['subgenre'].value_counts()
 
         return {
-            "genre": genre,
-            "indices": idxs,
-            "sims": sims,
-            "mean": mean,
-            "var": var,
-            "index_I": idx,
-            "centroid": genre_centroid,
-            "top_tracks": sim_tracks,
+            "mean": mean, "var": var, "index_I": idx_i,
+            "top_tracks": top_tracks,
             "top_artists": top_artists,
-            "top_genres": top_genres,
             "subgenres": subgenre_counter
         }
 
-    #-------------ХРОНОЛОГИЧЕСКИЙ АНАЛИЗ--------------------
-
+    # ------------- ХРОНОЛОГИЧЕСКИЙ АНАЛИЗ (Vectorized) --------------------
     def eras(self):
         """
-               Возвращает список эра-данных: [(era_tracks, era_vectors), ...]
-               """
-        if self.ohe_data is None:
-            raise ValueError("OHE must be built before era analysis")
-
-        # analysis.split_into_eras пока зашит на 3 эры,
-        # при желании можно туда добавить параметр n_eras.
-        return analysis.split_into_eras(self.playlist.tracklist, self.ohe_data)
-
-    def analyze_era(self, era_tracks):
+        Разбивает плейлист на эры автоматически.
         """
-                Анализ одной эры: жанры, артисты, настроение.
-                """
-        genre_counter = analysis.genre_freq_for_tracks(era_tracks)
-        artist_counter = analysis.artist_freq_for_tracks(era_tracks)
-        aggr, melanch = analysis.mood_counters_for_tracks(era_tracks)
+        n_eras = round(len(self.df) / 100)
+        # Создаем копию с колонкой эры
+        res_df = self.df.copy()
+        # Разбиваем на равные куски
+        res_df['era'] = pd.qcut(res_df.index, q=n_eras, labels=[f"Era {i + 1}" for i in range(n_eras)])
 
-        return {
-            "genre_counter": genre_counter,
-            "artist_counter": artist_counter,
-            "aggressive_words": aggr,
-            "melancholic_words": melanch,
-        }
+        return res_df
 
+    def analyze_eras_all_at_once(self):
+        """
+        Считает статистику по всем эрам сразу (groupby).
+        """
+        df_eras = self.eras()
 
+        stats = {}
+        for era_name, group in df_eras.groupby('era', observed=True):
+            # Агрегация жанров
+            genres = group['genre'].value_counts()
 
+            # Агрегация артистов (сложнее из-за списков, но решаемо)
+            artists = group['artists'].str.split(', ').explode().value_counts()
 
+            # Настроение (можно оставить твой старый метод, он нормальный)
+            aggr, melanch = mood_counters_for_tracks(group.to_dict('records'))
 
+            stats[era_name] = {
+                "genres": genres,
+                "artists": artists,
+                "mood": (aggr, melanch)
+            }
+        return stats
 
+    # ------------ КЛАСТЕРИЗАЦИЯ K-MEANS ------------------
+    def analyze_clusters(self, n_clusters=4):
+        if self.X_matrix is None:
+            raise ValueError("OHE needed")
 
+        km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        labels = km.fit_predict(self.X_matrix)
+        centroids = km.cluster_centers_
 
+        # Добавляем метки в df
+        df_clustered = self.df.copy()
+        df_clustered['cluster'] = labels
 
+        reports = []
+        for i in range(n_clusters):
+            # Интерпретация центра
+            top_artists, top_genres = interpret_centroid(centroids[i], self.feature_names)
 
+            # Примеры треков
+            examples = df_clustered[df_clustered['cluster'] == i].head(3)
 
+            reports.append({
+                "cluster_id": i,
+                "count": len(df_clustered[df_clustered['cluster'] == i]),
+                "top_artists": top_artists[:3],
+                "top_genres": top_genres[:3],
+                "examples": examples
+            })
+
+        return reports
