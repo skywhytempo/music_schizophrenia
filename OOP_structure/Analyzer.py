@@ -6,7 +6,7 @@ from typing import Dict
 
 # Импортируем только то, что реально нужно
 # Если у тебя логика интерпретации осталась в analysis, импортируй её
-from analysis import build_ohe, interpret_centroid, compute_stats, mood_counters_for_tracks
+from analysis import build_ohe, interpret_centroid, compute_stats
 
 
 class Analyzer:
@@ -136,12 +136,10 @@ class Analyzer:
             artists = group['artists'].str.split(', ').explode().value_counts()
 
             # Настроение (можно оставить твой старый метод, он нормальный)
-            aggr, melanch = mood_counters_for_tracks(group.to_dict('records'))
 
             stats[era_name] = {
                 "genres": genres,
                 "artists": artists,
-                "mood": (aggr, melanch)
             }
         return stats
 

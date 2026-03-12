@@ -128,29 +128,6 @@ def print_era_artist_stats(era_index, artist_counter, track_count, top_n=5):
         data_string += f"\n  • {artist}: {cnt} трек(ов), {perc:.1f}% эры"
     return data_string
 
-def print_era_mood_stats(era_index, aggr_count, melanch_count):
-    labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
-    title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
-
-    #title = f"ЭПОХА {era_index}"
-    data_string = (f"\n\n🤍 ЭРА {title}: условное «настроение» по названиям треков"
-                   + f"\n  Индекс энергичности: {aggr_count}"
-                   + f"\n  Индекс меланхолии:    {melanch_count}")
-    print(f"\n🤍 ЭРА {title}: условное «настроение» по названиям треков")
-    print(f"  Индекс энергичности: {aggr_count}")
-    print(f"  Индекс меланхолии:    {melanch_count}")
-    if aggr_count > melanch_count:
-        print("  → Эра больше тяготеет к агрессивному/энергичному настроению.")
-        data_string += "\n  → Эра больше тяготеет к агрессивному/энергичному настроению.\n"
-    elif melanch_count > aggr_count:
-        print("  → Эра больше тяготеет к меланхоличному настроению.")
-        data_string += "\n  → Эра больше тяготеет к меланхоличному настроению.\n"
-    else:
-        print("  → Баланс между агрессией и меланхолией.")
-        data_string += "\n  → Баланс между агрессией и меланхолией\n."
-    print("=" * 80)
-
-    return data_string
 
 def print_taste_genre_dna(genre, top_artists, top_genres, track_count, n):
     print("=" * 80)

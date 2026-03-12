@@ -117,13 +117,11 @@ def run():
                             genre_counter = data["genres"].to_dict()  # {Genre: Count}
                             total = sum(genre_counter.values())
                             artist_counter = data["artists"].to_dict()
-                            #aggr, melanch = data["mood"]
 
                             # Передаем во View
                             file_data += view.print_era_genre_stats(len(eras_stats) - i, Counter(genre_counter), total, top_n=5)
                             file_data += view.print_era_artist_stats(len(eras_stats) - i, Counter(artist_counter), total, top_n=5)
                             file_data += "\n"
-                            #file_data += view.print_era_mood_stats(i, aggr, melanch)
                             file_data += '=' * 80
 
                         with open(filename, "w", encoding='utf_8') as file:

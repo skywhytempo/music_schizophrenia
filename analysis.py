@@ -5,16 +5,6 @@ from collections import Counter
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
 
-AGGRESSIVE_WORDS = [
-    'phonk', 'kill', 'demon', 'blood', 'hell', 'fight', 'war',
-    'rage', 'anger', 'monster', 'dark', 'death'
-]
-
-MELANCHOLIC_WORDS = [
-    'love', 'sad', 'cry', 'lonely', 'alone', 'pain', 'rain',
-    'tears', 'heart', 'broken', 'melancholy', 'lost'
-]
-
 def build_ohe(df):
     '''artists_count = len(artists_map)
     all_artists = list(artists_map.keys())
@@ -214,20 +204,6 @@ def artist_freq_for_tracks(era_tracks):
                 counter[artist] += 1
     return counter
 
-def mood_counters_for_tracks(era_tracks):
-    aggr = 0
-    melanch = 0
-
-    for track in era_tracks:
-        title = track['title'].lower()
-        for w in AGGRESSIVE_WORDS:
-            if w in title:
-                aggr += 1
-        for w in MELANCHOLIC_WORDS:
-            if w in title:
-                melanch += 1
-
-    return aggr, melanch
 
 
 
