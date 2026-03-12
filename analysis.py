@@ -6,34 +6,6 @@ import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
 
 def build_ohe(df):
-    '''artists_count = len(artists_map)
-    all_artists = list(artists_map.keys())
-
-    genres_count = len(genres_map)
-    all_genres = list(genres_map.keys())
-
-    artist_to_idx = {artist: i for i, artist in enumerate(all_artists)}
-    genre_to_idx = {genre: i for i, genre in enumerate(all_genres)}
-
-    ohe_data = []
-
-    for track in tracklist:
-        track_artists = track[0]
-        track_genre = track[2]
-        split_artists = [s.strip() for s in track_artists.split(",")]
-
-        ohe_artist = [0] * artists_count
-        ohe_genre = [0] * genres_count
-
-        for artist in split_artists:
-            artist_idx = artist_to_idx[artist]
-            ohe_artist[artist_idx] = 1
-
-        genre_idx = genre_to_idx[track_genre]
-        ohe_genre[genre_idx] = 1
-
-        ohe_track = ohe_artist + ohe_genre
-        ohe_data.append(ohe_track)'''
 
     genre_dummies = pd.get_dummies(df["genre"]).add_prefix('genre_')
     all_genres = genre_dummies.columns.tolist()
@@ -67,8 +39,6 @@ def centroid(vectors):
     return np.mean(np.array(vectors, dtype=float), axis=0)
 
 def global_centroid(artists_map, genres_map, all_artists, all_genres, track_count):
-    #artists_count = len(artists_map)
-    #genres_count = len(genres_map)
     median_ohe_artist = [artists_map[artist] / track_count for artist in all_artists]
     median_ohe_genre = [genres_map[genre] / track_count for genre in all_genres]
 

@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-
 def string_track(tuple_track: tuple):
     track_data = f"{tuple_track[0]} - {tuple_track[1]}, Жанр: {tuple_track[2]}"
     return track_data
@@ -20,7 +18,7 @@ def print_global_top_n(similarity_list, n):
 def print_global_bottom_n(similarity_list, n):
     print("=" * 80)
 
-    print("Список 10 треков, наиболее схожих с выборочным средним:")
+    print("Список 10 треков, наименее схожих с выборочным средним:")
 
     # Глобальный анализ - может быть не очень эффективно, ведь,
     # иногда могут возникнуть кластеры, из-за чего
@@ -56,22 +54,6 @@ def print_top_artists_and_tracks_by_genre(artists_list, sim_tracks, n):
     for track, s in sim_tracks[:n]:
         print(f"  {string_track(track)} | схожесть: {s * 100:.1f}%")
 
-def plot_hist(sim_list, genre):
-    plt.figure(figsize=(6, 3))
-    plt.hist(
-        sim_list,
-        bins=10,  # 10 интервалов: 0.0–0.1, 0.1–0.2, ... 0.9–1.0
-        range=(0, 1),
-        edgecolor='black'
-    )
-
-    plt.xlabel(f'Cosine similarity to taste centroid for {genre}')
-    plt.ylabel('Number of tracks')
-    plt.title('Distribution of track similarity')
-
-    plt.tight_layout()
-    plt.show()
-
 def print_taste_dna(top_artists, top_genres, track_count, n):
     print("=" * 80)
     print("🧬 РАСШИФРОВКА ТВОЕГО ВКУСОВОГО ДНК (ГЛОБАЛЬНО)")
@@ -103,8 +85,6 @@ def show_menu():
 
 def print_era_genre_stats(era_index, genre_counter, track_count, top_n=5):
     print("=" * 80)
-    #labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
-    #title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
     title = f"ЭПОХА {era_index}"
     print(f"🎸 {title}: жанровой профиль")
     data_string = "=" * 80
@@ -117,8 +97,6 @@ def print_era_genre_stats(era_index, genre_counter, track_count, top_n=5):
     return  data_string
 
 def print_era_artist_stats(era_index, artist_counter, track_count, top_n=5):
-    #labels = ["THE ROOTS (Начало)", "THE SHIFT (Переход)", "CURRENT ERA (Настоящее)"][::-1]
-    #title = labels[era_index] if era_index < len(labels) else f"ЭПОХА {era_index}"
     title = f"ЭПОХА {era_index}"
     print(f"\n🎤 {title}: основные артисты")
     data_string = f"\n\n🎤 ЭРА {title}: основные артисты"
@@ -184,7 +162,6 @@ def print_kmeans_clusters(cluster_reports):
 
         print(f"   Жанровый профиль: {genres_str}")
         print(f"   Ядро артистов:    {artists_str}")
-       # print(f"   Примеры:          {', '.join([f"{t} by {report}" for t in report['examples']['title']])}")
 
 
 
